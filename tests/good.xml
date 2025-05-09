@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="bookstore.xsl"?>
+<!DOCTYPE bookstore [
+    <!ELEMENT bookstore (book+)>
+    <!ELEMENT book (title, author+, price, description?)>
+    <!ATTLIST book isbn CDATA #REQUIRED>
+    <!ATTLIST book edition CDATA "1">
+    <!ELEMENT title (#PCDATA)>
+    <!ELEMENT author (#PCDATA)>
+    <!ELEMENT price (#PCDATA)>
+    <!ELEMENT description (#PCDATA)>
+    <!ENTITY copy "&#169;">
+    <!ENTITY writer "John Doe">
+]>
+
+<!-- prolog comment -->
+
+<bookstore>
+    <!-- This is a comment -->
+    <?debug log="bookstore.log" level="verbose"?>
+    <book isbn="978-3-16-148410-0" edition="2">
+        <title>XML Fundamentals</title>
+        <author>&writer;</author>
+        <author>Jane Smith</author>
+        <price>39.95</price>
+        <description>An in-depth guide to XML &amp; related technologies. &copy;</description>
+
+        <empty />
+    </book>
+    
+    <book isbn="978-0-262-03384-8">
+        <title><![CDATA[Learning <XML> by Example]]></title>
+        <author>Emily Zhang</author>
+        <price>29.95</price>
+    </book>
+</bookstore>

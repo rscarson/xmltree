@@ -1,0 +1,57 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Check if the README is up to date
+    # We will do this before all the time-consuming tests
+    - name: Check if the README is up to date.
+      run: |
+        cargo install cargo-rdme
+        cargo rdme --check
+
+    # Check formatting
+    - name: Run fmt
+      run: cargo fmt --check
+    
+    # Lint all the things
+    - name: Run clippy
+      run: cargo clippy
+
+    # Test documentation generation
+    - name: Test documentation
+      run: cargo doc
+
+    # Run tests
+    - name: Run tests
+      run: cargo test
+
+    #
+    # Run all examples
+    #
+    
+    - name: Example - formatter
+      run: cargo run --example formatter
+    
+    - name: Example - parser
+      run: cargo run --example parser
+    
+    - name: Example - serializer
+      run: cargo run --example serializer
+    
+    - name: Example - writer
+      run: cargo run --example writer
