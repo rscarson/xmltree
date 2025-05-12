@@ -28,8 +28,8 @@ impl XmlError {
 
     /// Adds a path to the error context.
     #[must_use]
-    pub fn with_path(mut self, path: Option<PathBuf>) -> Self {
-        self.context.path = path;
+    pub fn with_path(mut self, path: PathBuf) -> Self {
+        self.context.path = Some(path);
         self
     }
 }
@@ -88,10 +88,6 @@ pub enum XmlErrorKind {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// Error occurred while allocating memory
-    #[error("Memory allocation error: {0}")]
-    Allocation(bumpalo::AllocErr),
-
     /// Error occurred while parsing binary
     #[error("Invalid bytecode: {0}")]
     Decode(#[from] BinDecodeError),
@@ -122,9 +118,9 @@ impl ErrorContext {
 
     /// Creates a new `ErrorContext` with the given path, source, and span.
     #[must_use]
-    pub fn with_path(path: Option<PathBuf>, source: &str, span: StrSpan) -> Self {
+    pub fn with_path(path: PathBuf, source: &str, span: StrSpan) -> Self {
         Self {
-            path,
+            path: Some(path),
             source: source.to_string(),
             span: span.into(),
         }

@@ -1,41 +1,36 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
-use xmltree::{BinaryStringFormat, Document, DocumentSourceRef};
+use xmltree::{Document, OwnedDocument};
 
 const SRC: &str = include_str!("../examples/example.xml");
 
-fn header_strings(src: &[u8], arena: &DocumentSourceRef) {
-    let _ = Document::from_bin(src, BinaryStringFormat::Header, arena).unwrap();
+fn borrowed_doc(src: &[u8]) {
+    let _ = Document::from_bin(src).unwrap();
 }
 
-fn inline_strings(src: &[u8], arena: &DocumentSourceRef) {
-    let _ = Document::from_bin(src, BinaryStringFormat::Inline, arena).unwrap();
+fn owned_doc(src: &[u8]) {
+    let _ = OwnedDocument::from_bin(src).unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let arena = DocumentSourceRef::default();
-    let mut document = Document::new(&arena, SRC).unwrap();
-    let header_bin = document.to_bin(Some(SRC)).unwrap();
-    let inline_bin = document.to_bin(None).unwrap();
+    let document = Document::parse_str(SRC).unwrap();
+    let borrowed_bin = document.to_bin().unwrap();
+    let owned_bin = document.to_owned().to_bin().unwrap();
 
-    document.strip_metadata();
-    let stripped_inline = document.to_bin(None).unwrap();
-    let stripped_header = document.to_bin(Some(SRC)).unwrap();
-
-    c.bench_function("header_strings", |b| {
-        b.iter(|| header_strings(black_box(&header_bin), black_box(&arena)))
+    c.bench_function("borrowed -> borrowed", |b| {
+        b.iter(|| borrowed_doc(black_box(&borrowed_bin)))
     });
 
-    c.bench_function("inline_strings", |b| {
-        b.iter(|| inline_strings(black_box(&inline_bin), black_box(&arena)))
+    c.bench_function("borrowed -> owned", |b| {
+        b.iter(|| owned_doc(black_box(&borrowed_bin)))
     });
 
-    c.bench_function("stripped_bin", |b| {
-        b.iter(|| inline_strings(black_box(&stripped_inline), black_box(&arena)))
+    c.bench_function("owned -> borrowed", |b| {
+        b.iter(|| borrowed_doc(black_box(&owned_bin)))
     });
 
-    c.bench_function("stripped_header", |b| {
-        b.iter(|| header_strings(black_box(&stripped_header), black_box(&arena)))
+    c.bench_function("owned -> owned", |b| {
+        b.iter(|| owned_doc(black_box(&owned_bin)))
     });
 }
 

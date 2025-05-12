@@ -24,13 +24,11 @@ It's main selling point is that it tracks the original span in source of all com
 Here is a simple example that parses a document from a string and prints out the resulting tree as a formatted XML string:
 
 ```rust
-use xmltree::{Document, DocumentSourceRef, error::XmlResult};
+use xmltree::{Document, error::XmlResult};
 const SRC: &str = "<test><test2>test</test2></test>";
 
 fn main() -> XmlResult<()> {
-   let arena = DocumentSourceRef::default();
-   let doc = Document::new(&arena, SRC)?;
-
+   let doc = Document::parse_str(SRC)?;
    let formatted_xml = doc.to_xml(Some("  "))?;
    println!("{formatted_xml}");
    Ok(())
@@ -51,24 +49,16 @@ See the example for a more detailed breakdown of the options.
 
 Here is a simple example that serializes a document to binary and back:
 ```rust
-use xmltree::{Document, DocumentSourceRef, BinaryStringFormat, error::XmlResult};
+use xmltree::{Document, error::XmlResult};
 const SRC: &str = "<test><test2>test</test2></test>";
 
 fn main() -> XmlResult<()> {
-    let arena = DocumentSourceRef::default();
-    let mut doc = Document::new(&arena, SRC)?;
+    let doc = Document::parse_str(SRC)?;
 
     // This removes all source span information from the document
-    // However, it improves both performance and size of the binary format
-    doc.strip_metadata();
-
-    // Serialize the document, tuned for best load speed
-    let bytes = doc.to_bin(Some(SRC))?;
-    let loaded_doc = Document::from_bin(&bytes, BinaryStringFormat::Header, &arena)?;
-
-    // Serialize the document, tuned for smallest binary size
-    let bytes = doc.to_bin(None)?;
-    let loaded_doc = Document::from_bin(&bytes, BinaryStringFormat::Inline, &arena)?;
+    // However, it will significantly reduce the size of the binary
+    let doc = doc.to_owned();
+    let bytes = doc.to_bin()?;
 
     Ok(())
 }
@@ -83,18 +73,19 @@ You can also create XML documents programmatically using the `Document` struct, 
 
 Here is a simple example that creates a document and prints it out:
 ```rust
-use xmltree::{Document, DocumentSourceRef, Node, NodeAttribute, NodeKind};
+use xmltree::{OwnedDocument, OwnedDeclarationNode, node::{OwnedTagNode, OwnedNodeAttribute, OwnedNode}};
 
-let arena = DocumentSourceRef::default();
-let mut document = Document::new_empty(&arena, "root");
+let mut root = OwnedTagNode::new("root");
+let mut document = OwnedDocument::new(root);
+document.declaration = Some(OwnedDeclarationNode::new("1.0", Some("UTF-8"), None));
 
-let mut node = Node::from_unallocated(&arena, None, "child");
-let attribute = NodeAttribute::from_unallocated(&arena, Some("xm"), "name", "foo");
+let mut node = OwnedTagNode::new("child");
+let attribute = OwnedNodeAttribute::new("xm:foo", "bar");
 node.attributes.push(attribute);
 
-document.root.children.push(NodeKind::Child(node));
+document.root.children.push(OwnedNode::Tag(node));
 
-let formatted_xml = document.to_xml(Some("  ")).unwrap();
+let formatted_xml = document.to_xml(None).unwrap();
 println!("{formatted_xml}");
 ```
 

@@ -1,12 +1,11 @@
-use xmltree::{BinaryStringFormat, Document, DocumentSourceRef};
+use xmltree::Document;
 
 const SRC: &str = include_str!("good.xml");
 const CMP: &str = include_str!("good.xml.parsed");
 
 #[test]
 fn test_good() {
-    let arena = DocumentSourceRef::default();
-    let document = match Document::new(&arena, SRC) {
+    let document = match Document::parse_str(SRC) {
         Ok(doc) => doc,
         Err(e) => panic!("{e}"),
     };
@@ -44,15 +43,13 @@ fn test_good() {
 
 #[test]
 fn test_encode() {
-    let arena = DocumentSourceRef::default();
-    let document = match Document::new(&arena, SRC) {
+    let document = match Document::parse_str(SRC) {
         Ok(doc) => doc,
         Err(e) => panic!("{e}"),
     };
 
-    let bytes = document.to_bin(Some(SRC)).unwrap();
-    let document2 = Document::from_bin(&bytes, BinaryStringFormat::Header, &arena)
-        .expect("Could not decode document");
+    let bytes = document.to_bin().unwrap();
+    let document2 = Document::from_bin(&bytes).expect("Could not decode document");
 
     assert_eq!(document, document2);
 }

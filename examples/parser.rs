@@ -3,16 +3,10 @@
 //! This example demonstrates how to parse an XML document using the `xmltree` crate.
 //!
 //! It shows how to create a bump allocator for string references, parse the XML document, and access its attributes and locations in the source string.
-use xmltree::{Document, DocumentSourceRef};
-
+use xmltree::Document;
 const DOCUMENT: &str = include_str!("example.xml");
 
 fn main() {
-    //
-    // Arena for allocating string references.
-    // This is a bump allocator that will hold the source string
-    let arena = DocumentSourceRef::default();
-
     //
     // Parse the XML document from the source string
     //
@@ -23,7 +17,7 @@ fn main() {
     //
     // The parser uses no recursion, so it can handle deeply nested documents without stack overflow.
     // It's also zero-copy and designed for speed.
-    let document = match Document::new(&arena, DOCUMENT) {
+    let document = match Document::parse_str(DOCUMENT) {
         Ok(doc) => doc,
         Err(e) => panic!("Error parsing XML document:\n{e}"),
     };
@@ -33,14 +27,19 @@ fn main() {
     //
     // Also note that if a node has duplicate attributes, the last one is used,
     // But all of them are stored in the tree.
-    if let Some(name) = document.root.get_attribute(None, "name") {
+    if let Some(name) = document.root().get_attribute(None, "name") {
         println!(
             "The bookstore name is defined at byte offset {}",
-            name.span.start
+            name.span().start()
         );
 
         // We can also use the source to get the exact location
-        let (row, col) = name.span.position(DOCUMENT);
+        let (row, col) = name.span().position(DOCUMENT);
         println!("The bookstore name is at row {}, column {}", row, col);
     }
+
+    //
+    // You can modify the document, by converting it into an OwnedDocument:
+    let mut owned_document = document.to_owned();
+    owned_document.root.name.local = "foo".into();
 }

@@ -1,33 +1,22 @@
-use crate::{
-    DocumentSourceRef,
-    to_bin::{BinDecodeError, Decoder, Encoder, ToBinHandler},
-};
+use crate::to_bin::{BinDecodeError, Decoder, Encoder, ToBinHandler};
 
 /// A span of a string in the input XML.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct StrSpan<'a> {
     /// The string slice.
-    pub text: &'a str,
+    text: &'a str,
 
     /// The start position of the span in the input XML.
-    pub start: usize,
+    start: usize,
 }
 impl<'a> StrSpan<'a> {
-    /// Create a new span from the given string slice.  
-    /// The strings will be allocated in the given arena.
-    ///
-    /// # Panics
-    /// Panics if the arena cannot allocate the strings.  
-    /// For a non-panicking version, use `DocumentSourceRef::try_alloc`.
-    #[must_use]
-    pub fn from_unallocated<'b>(arena: &'a DocumentSourceRef, text: &'b str) -> Self {
-        let text = arena.alloc(text);
-        StrSpan { text, start: 0 }
+    pub(crate) fn new(text: &'a str, start: usize) -> Self {
+        StrSpan { text, start }
     }
 
     /// Create a span at the end of the string.
     #[must_use]
-    pub fn end(str: &str) -> Self {
+    pub fn end(str: &'a str) -> Self {
         let len = str.len();
         StrSpan {
             text: "",
@@ -44,6 +33,19 @@ impl<'a> StrSpan<'a> {
         self.start = start;
     }
 
+    /// Returns the start offset of the span in the input XML.
+    #[inline]
+    #[must_use]
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    /// Returns the span's text.
+    #[must_use]
+    pub fn text(&self) -> &'a str {
+        self.text
+    }
+
     /// Returns the length of the span.
     #[inline]
     #[must_use]
@@ -58,36 +60,12 @@ impl<'a> StrSpan<'a> {
         self.len() == 0
     }
 
-    /// Returns the start position of the span in the input XML.
-    #[inline]
-    #[must_use]
-    pub fn start(&self) -> usize {
-        self.start
-    }
-
-    /// Returns this span as a string slice.
-    #[inline]
-    #[must_use]
-    pub fn as_str(&self) -> &'a str {
-        self.text
-    }
-
     /// Calculates the row and column of the span in the input XML.
     ///
     /// Warning: This is an expensive operation, and should be used for error reporting only.
     #[must_use]
     pub fn position(&self, source: &str) -> (usize, usize) {
         Self::position_in_text(self.start, source)
-    }
-
-    /// Sets the internal text of the span to the given string slice.  
-    /// The strings will be allocated in the given arena.
-    ///
-    /// # Panics
-    /// Panics if the arena cannot allocate the strings.  
-    /// For a non-panicking version, use `DocumentSourceRef::try_alloc`.
-    pub fn set(&mut self, text: impl AsRef<str>, arena: &'a DocumentSourceRef) {
-        self.text = arena.alloc(text);
     }
 
     pub(crate) fn position_in_text(start: usize, source: &str) -> (usize, usize) {
@@ -110,12 +88,9 @@ impl<'a> StrSpan<'a> {
 }
 
 impl<'src> ToBinHandler<'src> for StrSpan<'src> {
-    fn write<W: std::io::Write>(&self, encoder: &mut Encoder<W>) -> std::io::Result<()> {
-        self.start.write(encoder)?;
-
-        if encoder.source().is_some() {
-            //
-            // If a source is provided, we can get away with just an offset/len pair
+    fn write(&self, encoder: &mut Encoder) -> std::io::Result<()> {
+        if encoder.has_source_header() {
+            self.start.write(encoder)?;
             self.text.len().write(encoder)?;
         } else {
             self.text.write(encoder)?;
@@ -124,17 +99,19 @@ impl<'src> ToBinHandler<'src> for StrSpan<'src> {
         Ok(())
     }
 
-    fn read<R: std::io::Read>(decoder: &mut Decoder<'src, R>) -> Result<Self, BinDecodeError> {
-        let start = usize::read(decoder)?;
-
-        let text = if let Some(src) = decoder.source() {
+    fn read(decoder: &mut Decoder<'src>) -> Result<Self, BinDecodeError> {
+        if let Some(src) = decoder.source() {
+            let start = usize::read(decoder)?;
             let len = usize::read(decoder)?;
-            &src[start..start + len]
-        } else {
-            <&str>::read(decoder)?
-        };
+            let text = &src[start..start + len];
 
-        Ok(StrSpan { text, start })
+            Ok(StrSpan { text, start })
+        } else {
+            let start = decoder.cursor();
+            let text = <&str>::read(decoder)?;
+
+            Ok(StrSpan { text, start })
+        }
     }
 }
 
@@ -296,18 +273,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_strspan_from_unallocated() {
-        let arena = DocumentSourceRef::new();
-        let text = "example";
-        let span = StrSpan::from_unallocated(&arena, text);
-        assert_eq!(span.as_str(), text);
-        assert_eq!(span.start(), 0);
-    }
-
-    #[test]
     fn test_strspan_end() {
         let span = StrSpan::end("example");
-        assert_eq!(span.as_str(), "");
+        assert_eq!(span.text(), "");
         assert_eq!(span.start(), 6);
     }
 
@@ -323,7 +291,7 @@ mod tests {
             start: 8,
         };
         span1.extend(&span2, src);
-        assert_eq!(span1.as_str(), "example text");
+        assert_eq!(span1.text(), "example text");
         assert_eq!(span1.start(), 0);
     }
 
