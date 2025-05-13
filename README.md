@@ -41,9 +41,7 @@ Please see `examples/serializer.rs` for a more detailed example of serializing a
 This crate also provides a binary serializer that can serialize XML documents into a binary format, and back.  
 The serializer is generalized, and can be extended to custom types, if you want to embed XML docs, or portions, into other objects.
 
-It has a few options that can tune the result for either a smaller binary size, or faster load speed:
-- `BinaryStringFormat::Header` with no metadata is the fastest option, but must be used on documents that are not modified after parsing.
-- `BinaryStringFormat::Inline` is the most flexible, but with a performance cost. Strip metadata to get the smallest size and reasonable speed.
+It can load in ~5us, vs ~15us for parsing from a string (by my testing).
 
 See the example for a more detailed breakdown of the options.
 
@@ -67,9 +65,7 @@ fn main() -> XmlResult<()> {
 ### Document Writer
 Please see `examples/writer.rs` for a more detailed example of creating a document
 
-You can also create XML documents programmatically using the `Document` struct, with some important caveats:
-- If you use the `from_unallocated` functions, any strings will live for the lifetime of the arena, even if replaced in the document
-- If you use any other string references, the document will be tied to their lifetime
+You can also create XML documents programmatically using the `Document` struct.
 
 Here is a simple example that creates a document and prints it out:
 ```rust
